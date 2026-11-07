@@ -25,13 +25,37 @@
     <header class="bar">
       <h1>Barcodes</h1>
     </header>
-    <ul id="card-list" class="card-list"></ul>
+    <section id="fav-section" class="group" hidden>
+      <h3 class="group-title">★ Favorites</h3>
+      <ul id="fav-list" class="card-list"></ul>
+    </section>
+    <section id="folder-section" class="group" hidden>
+      <h3 class="group-title">Folders</h3>
+      <ul id="folder-list" class="folder-list"></ul>
+    </section>
+    <section id="other-section" class="group" hidden>
+      <h3 id="other-title" class="group-title">Other cards</h3>
+      <ul id="other-list" class="card-list"></ul>
+    </section>
     <div id="empty" class="empty" hidden>
       <p class="empty-title">No cards yet</p>
       <p>Tap <strong>Add</strong> to scan your first barcode.</p>
     </div>
+    <p id="version" class="version"></p>
     <button id="add-button" class="fab" type="button">＋ Add</button>
   </main>
+
+  <!-- Screen 1b: the cards inside one folder -->
+  <section id="folder" class="screen" hidden>
+    <header class="bar">
+      <button id="folder-back" class="link" type="button">‹ Cards</button>
+      <h2 id="folder-name"></h2>
+      <button id="folder-rename" class="link" type="button">Rename</button>
+    </header>
+    <ul id="folder-cards" class="card-list"></ul>
+    <button id="folder-delete" class="danger folder-delete" type="button">Delete folder</button>
+    <button id="folder-add" class="fab" type="button">＋ Add</button>
+  </section>
 
   <!-- Screen 2: scanning with the camera -->
   <section id="scan" class="screen dark" hidden>
@@ -65,6 +89,13 @@
       <label>Barcode type
         <select id="f-format"></select>
       </label>
+      <label>Folder
+        <select id="f-folder"></select>
+      </label>
+      <label class="check">
+        <input id="f-favorite" type="checkbox">
+        <span>★ Show in Favorites</span>
+      </label>
       <fieldset class="colors">
         <legend>Colour</legend>
         <div id="f-colors" class="color-row"></div>
@@ -86,6 +117,7 @@
     <div class="show-body">
       <div id="show-barcode" class="barcode-box big"></div>
       <p id="show-text" class="show-text"></p>
+      <button id="show-fav" class="fav-toggle" type="button"></button>
       <p class="tip">Tip: turn your screen brightness up — scanners read it more easily.</p>
     </div>
   </section>

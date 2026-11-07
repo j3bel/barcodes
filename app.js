@@ -3,6 +3,11 @@
 
 'use strict';
 
+// Shown at the bottom of the main screen. Change both when you publish an update,
+// and set VERSION in sw.js to match.
+const APP_VERSION = 2;
+const APP_DATE = '2026-11-07';
+
 const STORAGE_KEY = 'barcode-cards-v1';
 const COLORS = ['#1c71d8', '#26a269', '#e66100', '#c01c28', '#813d9c', '#865e3c', '#3d3846', '#0f9a9a'];
 
@@ -63,7 +68,7 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
 
 // ---------- Moving between screens ----------
 
-const SCREENS = ['home', 'scan', 'edit', 'show'];
+const SCREENS = ['home', 'folder', 'scan', 'edit', 'show'];
 
 function showScreen(name) {
   for (const s of SCREENS) $(s).hidden = s !== name;
@@ -116,31 +121,138 @@ function drawBarcode(box, text, formatId) {
   }
 }
 
-// ---------- Screen 1: the list ----------
+// ---------- Screen 1: the main list (favorites, folders, other cards) ----------
 
-function renderList() {
-  const list = $('card-list');
-  list.textContent = '';
-  $('empty').hidden = cards.length > 0;
-  for (const card of cards) {
-    const li = document.createElement('li');
-    const btn = document.createElement('button');
-    btn.className = 'card';
-    btn.type = 'button';
-    btn.style.background = card.color;
-    const name = document.createElement('span');
-    name.textContent = card.name;
-    const sub = document.createElement('small');
-    sub.textContent = card.text;
-    name.appendChild(sub);
-    btn.appendChild(name);
-    btn.addEventListener('click', () => openCard(card.id));
-    li.appendChild(btn);
-    list.appendChild(li);
-  }
+// The folder being looked at, or null on the main screen. New cards go into it,
+// and "back" from a card returns to it.
+let openFolder = null;
+
+// Folders aren't stored separately — a folder exists while any card is in it.
+function folderNames() {
+  const names = new Set(cards.map((c) => c.folder).filter(Boolean));
+  return [...names].sort((a, b) => a.localeCompare(b));
 }
 
+function cardButton(card) {
+  const li = document.createElement('li');
+  const btn = document.createElement('button');
+  btn.className = 'card';
+  btn.type = 'button';
+  btn.style.background = card.color;
+  const name = document.createElement('span');
+  name.textContent = card.name;
+  const sub = document.createElement('small');
+  sub.textContent = card.text;
+  name.appendChild(sub);
+  btn.appendChild(name);
+  if (card.favorite) {
+    const star = document.createElement('span');
+    star.className = 'star';
+    star.textContent = '★';
+    star.setAttribute('aria-label', 'Favorite');
+    btn.appendChild(star);
+  }
+  btn.addEventListener('click', () => openCard(card.id));
+  li.appendChild(btn);
+  return li;
+}
+
+function fillList(list, someCards) {
+  list.textContent = '';
+  for (const card of someCards) list.appendChild(cardButton(card));
+}
+
+function renderList() {
+  const favorites = cards.filter((c) => c.favorite);
+  const folders = folderNames();
+  // Favorites already show at the top, so don't list them twice on this screen.
+  const others = cards.filter((c) => !c.folder && !c.favorite);
+
+  $('empty').hidden = cards.length > 0;
+  $('fav-section').hidden = favorites.length === 0;
+  $('folder-section').hidden = folders.length === 0;
+  $('other-section').hidden = others.length === 0;
+  // With nothing else on screen, the "Other cards" heading would just be clutter.
+  $('other-title').hidden = favorites.length === 0 && folders.length === 0;
+
+  fillList($('fav-list'), favorites);
+  fillList($('other-list'), others);
+
+  const folderList = $('folder-list');
+  folderList.textContent = '';
+  for (const name of folders) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.className = 'folder-row';
+    btn.type = 'button';
+    const label = document.createElement('span');
+    label.className = 'folder-name';
+    label.textContent = name;
+    const count = document.createElement('span');
+    count.className = 'folder-count';
+    count.textContent = `${cards.filter((c) => c.folder === name).length} ›`;
+    btn.append(label, count);
+    btn.addEventListener('click', () => openFolderView(name));
+    li.appendChild(btn);
+    folderList.appendChild(li);
+  }
+
+  if (openFolder) renderFolder();
+}
+
+function goHome() {
+  openFolder = null;
+  renderList();
+  showScreen('home');
+}
+
+const dateParts = APP_DATE.split('-').map(Number);
+$('version').textContent = `Version ${APP_VERSION} · ` +
+  new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
+    .toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
 $('add-button').addEventListener('click', startScan);
+
+// ---------- Screen 1b: inside a folder ----------
+
+function openFolderView(name) {
+  openFolder = name;
+  if (!renderFolder()) return;
+  showScreen('folder');
+}
+
+// Returns false (and goes home) if the folder has no cards left.
+function renderFolder() {
+  const inFolder = cards.filter((c) => c.folder === openFolder);
+  if (inFolder.length === 0) { goHome(); return false; }
+  $('folder-name').textContent = openFolder;
+  fillList($('folder-cards'), inFolder);
+  return true;
+}
+
+$('folder-back').addEventListener('click', goHome);
+$('folder-add').addEventListener('click', startScan);
+
+$('folder-rename').addEventListener('click', () => {
+  const newName = (prompt('Rename folder', openFolder) || '').trim();
+  if (!newName || newName === openFolder) return;
+  const merging = folderNames().includes(newName);
+  for (const c of cards) if (c.folder === openFolder) c.folder = newName;
+  saveCards(cards);
+  if (merging) toast(`Moved into the existing “${newName}” folder`);
+  openFolderView(newName);
+  renderList();
+});
+
+$('folder-delete').addEventListener('click', () => {
+  const inFolder = cards.filter((c) => c.folder === openFolder);
+  const n = inFolder.length;
+  if (!confirm(`Delete the folder “${openFolder}”?\n\nIts ${n} card${n === 1 ? '' : 's'} won’t be deleted — they move to Other cards.`)) return;
+  for (const c of inFolder) c.folder = '';
+  saveCards(cards);
+  toast(`Folder deleted — cards kept`);
+  goHome();
+});
 
 // ---------- Screen 2: scanning ----------
 
@@ -194,7 +306,10 @@ function stopScan() {
   }
 }
 
-$('scan-cancel').addEventListener('click', () => { stopScan(); showScreen('home'); });
+$('scan-cancel').addEventListener('click', () => {
+  stopScan();
+  showScreen(openFolder ? 'folder' : 'home');
+});
 $('type-instead').addEventListener('click', () => { stopScan(); openEditor(null, { text: '', format: 'code128' }); });
 
 // ---------- Screen 3: name it and save ----------
@@ -225,6 +340,30 @@ function pickColor(c) {
   for (const sw of $('f-colors').children) sw.setAttribute('aria-pressed', String(sw.dataset.color === c));
 }
 
+const NEW_FOLDER = '\u0000new'; // menu value for "＋ New folder…"
+let folderChoice = '';
+
+function fillFolderMenu(selected) {
+  const menu = $('f-folder');
+  menu.textContent = '';
+  const names = folderNames();
+  if (selected && !names.includes(selected)) names.push(selected);
+  for (const [value, label] of [['', 'No folder'], ...names.map((n) => [n, n]), [NEW_FOLDER, '＋ New folder…']]) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    menu.appendChild(opt);
+  }
+  menu.value = selected;
+  folderChoice = selected;
+}
+
+$('f-folder').addEventListener('change', () => {
+  if ($('f-folder').value !== NEW_FOLDER) { folderChoice = $('f-folder').value; return; }
+  const name = (prompt('New folder name') || '').trim();
+  fillFolderMenu(name || folderChoice); // cancelled → back to what was chosen before
+});
+
 function openEditor(id, fresh) {
   editingId = id;
   const card = id ? cards.find((c) => c.id === id) : null;
@@ -232,6 +371,8 @@ function openEditor(id, fresh) {
   $('f-name').value = card ? card.name : '';
   $('f-text').value = card ? card.text : fresh.text;
   $('f-format').value = card ? card.format : fresh.format;
+  fillFolderMenu(card ? card.folder || '' : openFolder || '');
+  $('f-favorite').checked = card ? !!card.favorite : false;
   pickColor(card ? card.color : COLORS[cards.length % COLORS.length]);
   $('edit-delete').hidden = !card;
   updatePreview();
@@ -257,7 +398,10 @@ function saveEdit() {
   if (!text) { toast('Enter the number first.'); $('f-text').focus(); return; }
   if (updatePreview()) { toast('Fix the number or pick another barcode type.'); return; }
 
-  const fields = { name, text, format: $('f-format').value, color: chosenColor };
+  const fields = {
+    name, text, format: $('f-format').value, color: chosenColor,
+    folder: folderChoice, favorite: $('f-favorite').checked,
+  };
   if (editingId) {
     Object.assign(cards.find((c) => c.id === editingId), fields);
   } else {
@@ -272,7 +416,7 @@ function saveEdit() {
 $('edit-save').addEventListener('click', saveEdit);
 $('edit-form').addEventListener('submit', (e) => { e.preventDefault(); saveEdit(); });
 $('edit-cancel').addEventListener('click', () => {
-  if (editingId) openCard(editingId); else showScreen('home');
+  if (editingId) openCard(editingId); else showScreen(openFolder ? 'folder' : 'home');
 });
 $('edit-delete').addEventListener('click', () => {
   const card = cards.find((c) => c.id === editingId);
@@ -280,7 +424,7 @@ $('edit-delete').addEventListener('click', () => {
   cards = cards.filter((c) => c.id !== editingId);
   saveCards(cards);
   renderList();
-  showScreen('home');
+  showScreen(openFolder ? 'folder' : 'home'); // renderList already went home if the folder emptied
   toast(`Deleted ${card.name}`);
 });
 
@@ -293,12 +437,30 @@ function openCard(id) {
   const card = cards.find((c) => c.id === id);
   if (!card) { showScreen('home'); return; }
   shownId = id;
+  // A card opened from a folder goes back to that folder; if it has since moved out, go to the main list.
+  if (openFolder && card.folder !== openFolder) openFolder = null;
+  $('show-back').textContent = `‹ ${openFolder || 'Cards'}`;
   $('show-name').textContent = card.name;
   $('show-text').textContent = card.text;
+  showFavorite(card);
   drawBarcode($('show-barcode'), card.text, card.format);
   showScreen('show');
   keepScreenOn();
 }
+
+function showFavorite(card) {
+  $('show-fav').textContent = card.favorite ? '★ In Favorites' : '☆ Add to Favorites';
+  $('show-fav').setAttribute('aria-pressed', String(!!card.favorite));
+}
+
+$('show-fav').addEventListener('click', () => {
+  const card = cards.find((c) => c.id === shownId);
+  if (!card) return;
+  card.favorite = !card.favorite;
+  saveCards(cards);
+  showFavorite(card);
+  renderList();
+});
 
 // Stops the phone's screen going dark while you're waiting in line.
 async function keepScreenOn() {
@@ -320,7 +482,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !$('show').hidden) keepScreenOn();
 });
 
-$('show-back').addEventListener('click', () => { letScreenSleep(); showScreen('home'); });
+$('show-back').addEventListener('click', () => {
+  letScreenSleep();
+  if (openFolder) openFolderView(openFolder); else goHome();
+});
 $('show-edit').addEventListener('click', () => { letScreenSleep(); openEditor(shownId); });
 
 // ---------- Start ----------

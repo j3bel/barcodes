@@ -1,8 +1,8 @@
 // Keeps a copy of the app on the phone so it opens instantly, even with no signal.
 // It shows the saved copy first, then quietly fetches any update for next time.
-// When you change the app, bump VERSION so phones drop the old copy.
+// When you change the app, bump VERSION (keep it the same as APP_VERSION in app.js).
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const FILES = [
   './',
   'index.html',
