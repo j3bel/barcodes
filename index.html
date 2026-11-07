@@ -77,6 +77,7 @@
     </div>
     <p id="scan-message" class="scan-message">Point the camera at the barcode.</p>
     <button id="type-instead" class="link light" type="button">Type the number in instead</button>
+    <button id="paste-shared" class="link light" type="button">Paste a shared card</button>
   </section>
 
   <!-- Screen 3: name the card and save it -->
@@ -124,8 +125,36 @@
     <div class="show-body">
       <div id="show-barcode" class="barcode-box big"></div>
       <p id="show-text" class="show-text"></p>
-      <button id="show-fav" class="fav-toggle" type="button"></button>
+      <div class="actions">
+        <button id="show-fav" class="fav-toggle" type="button"></button>
+        <button id="show-share" class="fav-toggle" type="button">Share</button>
+      </div>
       <p class="tip">Tip: turn your screen brightness up — scanners read it more easily.</p>
+    </div>
+  </section>
+
+  <!-- Screen 5: someone opened a shared-card link (in Safari, not the Home Screen app) -->
+  <section id="shared" class="screen" hidden>
+    <header class="bar">
+      <span></span>
+      <h2>Shared card</h2>
+      <span></span>
+    </header>
+    <div class="show-body">
+      <p id="shared-name" class="shared-name"></p>
+      <div id="shared-barcode" class="barcode-box big"></div>
+      <p id="shared-text" class="show-text"></p>
+      <div class="steps">
+        <p><strong>To add it to your Barcodes app:</strong></p>
+        <ol>
+          <li>Tap <strong>Copy card</strong> below.</li>
+          <li>Open <strong>Barcodes</strong> from your Home Screen.</li>
+          <li>Tap <strong>＋ Add</strong>, then <strong>Paste a shared card</strong>.</li>
+        </ol>
+      </div>
+      <button id="shared-copy" class="primary" type="button">Copy card</button>
+      <p class="tip">Don’t have the app yet? Tap <strong>Share</strong> → <strong>Add to Home Screen</strong> first, then follow the steps.</p>
+      <button id="shared-here" class="link" type="button">Or save it in this browser instead</button>
     </div>
   </section>
 

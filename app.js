@@ -5,7 +5,7 @@
 
 // Shown at the bottom of the main screen. Change both when you publish an update,
 // and set VERSION in sw.js to match.
-const APP_VERSION = 3;
+const APP_VERSION = 4;
 const APP_DATE = '2026-11-07';
 
 const STORAGE_KEY = 'barcode-cards-v1';
@@ -72,7 +72,7 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
 
 // ---------- Moving between screens ----------
 
-const SCREENS = ['home', 'folder', 'scan', 'edit', 'show'];
+const SCREENS = ['home', 'folder', 'scan', 'edit', 'show', 'shared'];
 
 function showScreen(name) {
   for (const s of SCREENS) $(s).hidden = s !== name;
@@ -373,17 +373,17 @@ function openEditor(id, fresh) {
   editingId = id;
   const card = id ? cards.find((c) => c.id === id) : null;
   $('edit-title').textContent = card ? 'Edit card' : 'New card';
-  $('f-name').value = card ? card.name : '';
+  $('f-name').value = card ? card.name : fresh.name || '';
   $('f-text').value = card ? card.text : fresh.text;
   $('f-format').value = card ? card.format : fresh.format;
   fillFolderMenu(card ? card.folder || '' : openFolder || '');
   $('f-favorite').checked = card ? !!card.favorite : false;
-  pickColor(card ? card.color : COLORS[cards.length % COLORS.length]);
+  pickColor(card ? card.color : fresh.color || COLORS[cards.length % COLORS.length]);
   $('edit-delete').hidden = !card;
   updatePreview();
   showScreen('edit');
   // A freshly scanned card only needs a name; a typed one needs the number first.
-  if (!card) (fresh.text ? $('f-name') : $('f-text')).focus();
+  if (!card && !fresh.name) (fresh.text ? $('f-name') : $('f-text')).focus();
 }
 
 function updatePreview() {
@@ -594,10 +594,134 @@ $('restore-file').addEventListener('change', async () => {
   }
 });
 
+// ---------- Sharing a card ----------
+// A shared card travels as a link: …/barcodes/#card=<code>. Everything after "#" stays
+// in the browser — it's never sent to GitHub. On iPhone a link opens in Safari, which
+// can't see the Home Screen app's cards, so the shared page offers "Copy card" and the
+// app has "Paste a shared card".
+
+function encodeCard(card) {
+  const json = JSON.stringify({ v: 1, n: card.name, t: card.text, f: card.format, c: card.color });
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Finds a shared card in any text (a link, or a whole message with a link in it).
+function decodeSharedCard(text) {
+  const match = /#card=([A-Za-z0-9_-]+)/.exec(text || '');
+  if (!match) return null;
+  try {
+    const binary = atob(match[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const json = new TextDecoder().decode(Uint8Array.from(binary, (ch) => ch.charCodeAt(0)));
+    const d = JSON.parse(json);
+    return cleanCard({ name: d.n, text: d.t, format: d.f, color: d.c });
+  } catch {
+    return null;
+  }
+}
+
+function shareLink(card) {
+  return location.origin + location.pathname + '#card=' + encodeCard(card);
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Older browsers: copy through a hidden text box.
+    const box = document.createElement('textarea');
+    box.value = text;
+    document.body.appendChild(box);
+    box.select();
+    const ok = document.execCommand && document.execCommand('copy');
+    box.remove();
+    return !!ok;
+  }
+}
+
+$('show-share').addEventListener('click', async () => {
+  const card = cards.find((c) => c.id === shownId);
+  if (!card) return;
+  const url = shareLink(card);
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: `${card.name} card`, text: `${card.name} card for the Barcodes app — tap the link to add it:`, url });
+    } catch (err) {
+      if (!err || err.name !== 'AbortError') toast('Couldn’t share: ' + (err && err.message || err));
+    }
+  } else if (await copyText(url)) {
+    toast('Link copied — paste it into a message');
+  } else {
+    prompt('Copy this link and send it:', url);
+  }
+});
+
+// Adds a shared card: opens the editor filled in, so the person can pick a folder and tap Save.
+function addSharedCard(card) {
+  const existing = cards.find((c) => c.text === card.text && c.format === card.format);
+  if (existing) {
+    toast(`You already have this card (${existing.name})`);
+    openCard(existing.id);
+    return;
+  }
+  openEditor(null, card);
+  toast('Shared card — tap Save to keep it');
+}
+
+$('paste-shared').addEventListener('click', async () => {
+  stopScan();
+  let text = '';
+  try {
+    text = await navigator.clipboard.readText(); // iPhone shows a small "Paste" bubble to tap
+  } catch {
+    text = prompt('Paste the shared card link here:') || '';
+  }
+  const card = decodeSharedCard(text);
+  if (card) { addSharedCard(card); return; }
+  if (text) toast('That doesn’t look like a shared card. Copy the whole link and try again.');
+  startScan(); // back to the camera
+});
+
+// Someone opened a shared-card link.
+let pendingShared = null;
+
+function openSharedLink() {
+  if (!location.hash.startsWith('#card=')) return false;
+  const card = decodeSharedCard(location.hash);
+  history.replaceState(null, '', location.pathname); // tidy the address bar
+  if (!card) { toast('That shared link is damaged — ask for it to be sent again.'); return false; }
+
+  const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (installed) { addSharedCard(card); return true; }
+
+  pendingShared = card;
+  $('shared-name').textContent = card.name;
+  $('shared-text').textContent = card.text;
+  drawBarcode($('shared-barcode'), card.text, card.format);
+  showScreen('shared');
+  return true;
+}
+
+$('shared-copy').addEventListener('click', async () => {
+  if (!pendingShared) return;
+  const url = shareLink(pendingShared);
+  if (await copyText(url)) toast('Copied — now open the Barcodes app');
+  else prompt('Copy this link, then open the Barcodes app:', url);
+});
+
+$('shared-here').addEventListener('click', () => {
+  if (pendingShared) addSharedCard(pendingShared);
+});
+
+window.addEventListener('hashchange', openSharedLink);
+
 // ---------- Start ----------
 
 renderList();
-showScreen('home');
+if (!openSharedLink()) showScreen('home');
 
 // Lets the app open with no internet connection (see sw.js).
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

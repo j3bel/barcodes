@@ -186,7 +186,22 @@ button { font: inherit; cursor: pointer; }
 }
 .fav-toggle[aria-pressed="true"] { color: #b5835a; border-color: #e5a50a; }
 @media (prefers-color-scheme: dark) { .fav-toggle[aria-pressed="true"] { color: #f8e45c; } }
+.actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .tip { color: var(--muted); font-size: 14px; }
+
+/* Shared-card page */
+.shared-name { font-size: 24px; font-weight: 600; margin: 12px 0 0; }
+.steps {
+  text-align: left; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 4px 16px; margin: 8px 0 16px;
+}
+.steps ol { padding-left: 22px; margin-top: 0; }
+.steps li { margin-bottom: 4px; }
+.primary {
+  width: 100%; padding: 14px; border: 0; border-radius: 12px;
+  background: var(--accent); color: #fff; font-weight: 600;
+}
+@media (prefers-color-scheme: dark) { .primary { color: #1e1e1e; } }
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);

@@ -21,6 +21,11 @@ The owner is a complete beginner to app-making: explain steps plainly, suggest
 - Backup = JSON `{ app: 'Barcodes', backupFormat: 1, appVersion, created, cards }`, sent via
   the Share sheet on iPhone (download on computers). Restore only ever **adds** cards,
   skipping ones with the same id or same text+format — it never deletes or overwrites.
+- Sharing: a card travels as `…/barcodes/#card=<base64url of {v:1,n,t,f,c}>` (the hash
+  never reaches GitHub). iPhone opens links in Safari, whose storage is separate from the
+  Home Screen app, so the shared-card page has "Copy card" and the app's Add screen has
+  "Paste a shared card". An installed app opening the link goes straight to the editor.
+  Shared: name, number, type, colour — not folder or favorite (the receiver's choice).
 - Testing: drive headless Chromium over CDP from the scratchpad; a fake camera works with
   `--use-file-for-fake-video-capture=<barcode>.y4m`.
 - Camera needs https on iPhone, so phone testing is done on the Pages URL.
