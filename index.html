@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Barcodes</title>
+
+  <!-- Makes it behave like an app when added to the iPhone Home Screen -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Barcodes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f6f5f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1e1e1e" media="(prefers-color-scheme: dark)">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Screen 1: the list of saved cards -->
+  <main id="home" class="screen">
+    <header class="bar">
+      <h1>Barcodes</h1>
+    </header>
+    <ul id="card-list" class="card-list"></ul>
+    <div id="empty" class="empty" hidden>
+      <p class="empty-title">No cards yet</p>
+      <p>Tap <strong>Add</strong> to scan your first barcode.</p>
+    </div>
+    <button id="add-button" class="fab" type="button">＋ Add</button>
+  </main>
+
+  <!-- Screen 2: scanning with the camera -->
+  <section id="scan" class="screen dark" hidden>
+    <header class="bar">
+      <button id="scan-cancel" class="link" type="button">Cancel</button>
+      <h2>Scan a barcode</h2>
+      <span></span>
+    </header>
+    <div class="camera">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="frame" aria-hidden="true"></div>
+    </div>
+    <p id="scan-message" class="scan-message">Point the camera at the barcode.</p>
+    <button id="type-instead" class="link light" type="button">Type the number in instead</button>
+  </section>
+
+  <!-- Screen 3: name the card and save it -->
+  <section id="edit" class="screen" hidden>
+    <header class="bar">
+      <button id="edit-cancel" class="link" type="button">Cancel</button>
+      <h2 id="edit-title">New card</h2>
+      <button id="edit-save" class="link strong" type="button">Save</button>
+    </header>
+    <form id="edit-form" class="form" autocomplete="off">
+      <label>Name
+        <input id="f-name" type="text" placeholder="e.g. Costco, Gym, Library" required>
+      </label>
+      <label>Number
+        <input id="f-text" type="text" required>
+      </label>
+      <label>Barcode type
+        <select id="f-format"></select>
+      </label>
+      <fieldset class="colors">
+        <legend>Colour</legend>
+        <div id="f-colors" class="color-row"></div>
+      </fieldset>
+      <div class="preview-label">Preview</div>
+      <div id="edit-preview" class="barcode-box"></div>
+      <p id="edit-error" class="error" hidden></p>
+      <button id="edit-delete" class="danger" type="button" hidden>Delete card</button>
+    </form>
+  </section>
+
+  <!-- Screen 4: show a card big, ready for the scanner -->
+  <section id="show" class="screen" hidden>
+    <header class="bar">
+      <button id="show-back" class="link" type="button">‹ Cards</button>
+      <h2 id="show-name"></h2>
+      <button id="show-edit" class="link" type="button">Edit</button>
+    </header>
+    <div class="show-body">
+      <div id="show-barcode" class="barcode-box big"></div>
+      <p id="show-text" class="show-text"></p>
+      <p class="tip">Tip: turn your screen brightness up — scanners read it more easily.</p>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="vendor/zxing-0.23.0.min.js"></script>
+  <script src="vendor/bwip-js-4.11.4.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
