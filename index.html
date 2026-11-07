@@ -41,6 +41,13 @@
       <p class="empty-title">No cards yet</p>
       <p>Tap <strong>Add</strong> to scan your first barcode.</p>
     </div>
+    <div class="backup">
+      <button id="backup-button" class="link" type="button">Back up cards</button>
+      <span class="dot" aria-hidden="true">·</span>
+      <button id="restore-button" class="link" type="button">Restore from backup</button>
+      <input id="restore-file" type="file" accept=".json,application/json" hidden>
+      <p id="backup-status" class="backup-status"></p>
+    </div>
     <p id="version" class="version"></p>
     <button id="add-button" class="fab" type="button">＋ Add</button>
   </main>

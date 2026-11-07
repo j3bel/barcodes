@@ -101,8 +101,12 @@ button { font: inherit; cursor: pointer; }
 #folder .card-list { margin-bottom: 0; }
 .folder-delete { width: 100%; margin: 24px 0 96px; }
 
-/* Room for the floating Add button below the version line */
-.version { text-align: center; color: var(--muted); font-size: 13px; margin: 32px 0 96px; }
+/* Backup links, then room for the floating Add button below the version line */
+.backup { text-align: center; margin-top: 32px; font-size: 15px; }
+.backup .link { padding: 6px 2px; }
+.backup .dot { color: var(--muted); margin: 0 6px; }
+.backup-status { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+.version { text-align: center; color: var(--muted); font-size: 13px; margin: 8px 0 96px; }
 
 .empty { text-align: center; color: var(--muted); margin-top: 25vh; }
 .empty-title { font-size: 22px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }

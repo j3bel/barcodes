@@ -5,7 +5,7 @@
 
 // Shown at the bottom of the main screen. Change both when you publish an update,
 // and set VERSION in sw.js to match.
-const APP_VERSION = 2;
+const APP_VERSION = 3;
 const APP_DATE = '2026-11-07';
 
 const STORAGE_KEY = 'barcode-cards-v1';
@@ -62,6 +62,10 @@ function saveCards(cards) {
 }
 
 let cards = loadCards();
+
+function newId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
 
 // Ask the browser to keep our data even when the phone is low on space.
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
@@ -197,6 +201,7 @@ function renderList() {
     folderList.appendChild(li);
   }
 
+  renderBackupStatus();
   if (openFolder) renderFolder();
 }
 
@@ -405,7 +410,7 @@ function saveEdit() {
   if (editingId) {
     Object.assign(cards.find((c) => c.id === editingId), fields);
   } else {
-    editingId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    editingId = newId();
     cards.push({ id: editingId, ...fields, created: new Date().toISOString() });
   }
   if (!saveCards(cards)) return;
@@ -487,6 +492,107 @@ $('show-back').addEventListener('click', () => {
   if (openFolder) openFolderView(openFolder); else goHome();
 });
 $('show-edit').addEventListener('click', () => { letScreenSleep(); openEditor(shownId); });
+
+// ---------- Backup and restore ----------
+// A backup is one JSON file holding every card. Restoring only ever adds cards,
+// so it's safe to restore the same file twice or onto a phone that already has cards.
+
+const LAST_BACKUP_KEY = 'barcode-last-backup';
+
+function todayString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function renderBackupStatus() {
+  let last = null;
+  try { last = localStorage.getItem(LAST_BACKUP_KEY); } catch { /* storage blocked */ }
+  $('backup-status').textContent = last
+    ? 'Last backup: ' + new Date(last).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+    : cards.length ? 'Not backed up yet' : '';
+}
+
+async function backUp() {
+  if (cards.length === 0) { toast('No cards to back up yet.'); return; }
+  const data = { app: 'Barcodes', backupFormat: 1, appVersion: APP_VERSION, created: new Date().toISOString(), cards };
+  const fileName = `barcodes-backup-${todayString()}.json`;
+  const file = new File([JSON.stringify(data, null, 2)], fileName, { type: 'application/json' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      // iPhone: opens the Share sheet → "Save to Files", AirDrop, Mail…
+      await navigator.share({ files: [file], title: 'Barcodes backup' });
+    } else {
+      // Computers: an ordinary download.
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(file);
+      link.download = fileName;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return; // closed the Share sheet without saving
+    toast('Couldn’t make the backup: ' + (err && err.message || err));
+    return;
+  }
+  try { localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString()); } catch { /* fine */ }
+  renderBackupStatus();
+  toast(`Backed up ${cards.length} card${cards.length === 1 ? '' : 's'}`);
+}
+
+// Checks one card from a backup file. Returns a clean card, or null if it can't be used.
+function cleanCard(raw) {
+  if (!raw || typeof raw.text !== 'string' || !raw.text.trim()) return null;
+  if (!FORMATS.some((f) => f.id === raw.format)) return null;
+  return {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : newId(),
+    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Card',
+    text: raw.text.trim(),
+    format: raw.format,
+    color: typeof raw.color === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color) ? raw.color : COLORS[0],
+    folder: typeof raw.folder === 'string' ? raw.folder.trim() : '',
+    favorite: raw.favorite === true,
+    created: typeof raw.created === 'string' ? raw.created : new Date().toISOString(),
+  };
+}
+
+function restoreFrom(text) {
+  let data;
+  try { data = JSON.parse(text); } catch { data = null; }
+  const list = data && Array.isArray(data.cards) ? data.cards : null;
+  if (!list) { toast('That file isn’t a Barcodes backup.'); return; }
+
+  let added = 0, already = 0, unreadable = 0;
+  for (const raw of list) {
+    const card = cleanCard(raw);
+    if (!card) { unreadable++; continue; }
+    const have = cards.some((c) => c.id === card.id || (c.text === card.text && c.format === card.format));
+    if (have) { already++; continue; }
+    cards.push(card);
+    added++;
+  }
+  if (added && !saveCards(cards)) return;
+  goHome();
+
+  const parts = [added ? `Restored ${added} card${added === 1 ? '' : 's'}` : 'No new cards to add'];
+  if (already) parts.push(`${already} already here`);
+  if (unreadable) parts.push(`${unreadable} couldn’t be read`);
+  toast(parts.join(' · '));
+}
+
+$('backup-button').addEventListener('click', backUp);
+$('restore-button').addEventListener('click', () => {
+  $('restore-file').value = ''; // so picking the same file again still counts as a change
+  $('restore-file').click();
+});
+$('restore-file').addEventListener('change', async () => {
+  const file = $('restore-file').files[0];
+  if (!file) return;
+  try {
+    restoreFrom(await file.text());
+  } catch (err) {
+    toast('Couldn’t open that file: ' + (err && err.message || err));
+  }
+});
 
 // ---------- Start ----------
 
