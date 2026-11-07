@@ -291,3 +291,28 @@ strong { font-weight: 600; }
   padding: 10px 18px; border-radius: 999px; font-size: 15px; font-weight: 500;
   max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
+
+/* ---------- Motion: short and quiet, never in the way at the scanner ---------- */
+
+#show-card { view-transition-name: open-card; }
+::view-transition-group(open-card) { animation-duration: 0.38s; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.25s; }
+
+@keyframes deal { from { opacity: 0; transform: translateY(-24px); } to { opacity: 1; transform: none; } }
+.stack.deal li { animation: deal 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 35ms); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+#show:not([hidden]) .barcode-panel { animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) 0.06s both; }
+#show:not([hidden]) .action-grid { animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) 0.12s both; }
+#show:not([hidden]) .tip { animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) 0.16s both; }
+
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.pop { animation: pop 0.35s ease-out; }
+
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.toast:not([hidden]) { animation: toast-in 0.25s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}

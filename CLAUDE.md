@@ -15,6 +15,11 @@ The owner is a complete beginner to app-making: explain steps plainly, suggest
 - Icon (v7): teal `#258594`, a blue card peeking behind a white barcode card — the owner's
   own tweak of option A on the design canvas. `icons/icon.svg` is the source; PNGs are
   rendered from it with `rsvg-convert`.
+- Motion (v7): opening/closing a card uses a View Transition (`view-transition-name:
+  open-card`, set on the tapped stack card only for the moment of capture; `#show-card`
+  carries it in CSS); cards "deal" in (`.stack.deal`, only on load / chip change, never on
+  search typing); star pop; toast slide. All off under Reduce Motion; without View
+  Transitions support it just switches screens.
 - Plain HTML/CSS/JS, no build step, no npm. Files: `index.html`, `style.css`,
   `app.js`, `sw.js` (offline cache), `manifest.webmanifest`, `icons/`.
 - Libraries are copied into `vendor/` (no CDN, so it works offline):

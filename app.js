@@ -87,6 +87,16 @@ function showScreen(name) {
   window.scrollTo(0, 0);
 }
 
+// Animations are skipped when the phone's Reduce Motion setting is on (style.css does the same).
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+// Runs `update` as an animated change between two looks of the page, where the browser
+// can (iPhone: iOS 18 and later); elsewhere it just runs it. Resolves when finished.
+function withTransition(update) {
+  if (!document.startViewTransition || reduceMotion.matches) { update(); return Promise.resolve(); }
+  return document.startViewTransition(update).finished.catch(() => {});
+}
+
 let toastTimer;
 function toast(message) {
   const el = $('toast');
@@ -210,7 +220,12 @@ function stackCard(card) {
   const btn = el('button', 'wcard');
   btn.type = 'button';
   fillCardFace(btn, card, false);
-  btn.addEventListener('click', () => openCard(card.id));
+  li.dataset.id = card.id;
+  // The tapped card glides from the stack to the top of the card screen.
+  btn.addEventListener('click', () => {
+    btn.style.viewTransitionName = 'open-card';
+    withTransition(() => { btn.style.viewTransitionName = ''; openCard(card.id); });
+  });
   li.appendChild(btn);
   return li;
 }
@@ -236,7 +251,7 @@ function chip(value, label, count, starred) {
   }
   btn.append(label);
   if (count !== undefined) btn.appendChild(el('span', 'count', String(count)));
-  btn.addEventListener('click', () => { view = value; renderList(); });
+  btn.addEventListener('click', () => { view = value; dealNext = true; renderList(); });
   return btn;
 }
 
@@ -271,10 +286,17 @@ function renderList() {
   for (const name of folders) chips.appendChild(chip(name, name, cards.filter((c) => c.folder === name).length));
   $('folder-tools').hidden = !currentFolder() || reordering || !!query;
 
+  // When the app opens or a chip is picked, the cards drop in one after another.
   const stack = $('stack');
   stack.textContent = '';
   stack.hidden = reordering;
-  for (const card of shown) stack.appendChild(stackCard(card));
+  stack.classList.toggle('deal', dealNext);
+  dealNext = false;
+  shown.forEach((card, i) => {
+    const li = stackCard(card);
+    li.style.setProperty('--i', Math.min(i, 12));
+    stack.appendChild(li);
+  });
 
   const list = $('reorder-list');
   list.textContent = '';
@@ -294,6 +316,8 @@ function renderList() {
   $('backup-button').hidden = cards.length === 0;
   renderBackupStatus();
 }
+
+let dealNext = true;
 
 function goHome() {
   setReordering(false);
@@ -634,6 +658,7 @@ $('show-fav').addEventListener('click', () => {
   card.favorite = !card.favorite;
   saveCards(cards);
   showFavorite(card);
+  $('show-fav').querySelector('svg').classList.add('pop');
   fillCardFace($('show-card'), card, true);
   renderList();
 });
@@ -665,9 +690,15 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !$('show').hidden) keepScreenOn();
 });
 
+// Going back, the card glides back into its place in the stack.
 $('show-back').addEventListener('click', () => {
   letScreenSleep();
-  goHome();
+  let target = null;
+  withTransition(() => {
+    goHome();
+    const li = [...$('stack').children].find((item) => item.dataset.id === shownId);
+    if (li) { target = li.firstChild; target.style.viewTransitionName = 'open-card'; }
+  }).then(() => { if (target) target.style.viewTransitionName = ''; });
 });
 $('show-edit').addEventListener('click', () => { letScreenSleep(); openEditor(shownId); });
 
