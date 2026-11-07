@@ -5,11 +5,17 @@
 
 // Shown at the bottom of the main screen. Change both when you publish an update,
 // and set VERSION in sw.js to match.
-const APP_VERSION = 5;
+const APP_VERSION = 6;
 const APP_DATE = '2026-11-07';
 
 const STORAGE_KEY = 'barcode-cards-v1';
-const COLORS = ['#1c71d8', '#26a269', '#e66100', '#c01c28', '#813d9c', '#865e3c', '#3d3846', '#0f9a9a'];
+// Deep enough that white text on them stays readable in bright light.
+const COLORS = ['#1a5fb4', '#1f7a4a', '#c64600', '#a51d2d', '#613583', '#865e3c', '#3d3846', '#0b6e72'];
+// Versions before 6 used brighter shades; cards saved then are moved to the matching deep one.
+const OLD_COLORS = {
+  '#1c71d8': '#1a5fb4', '#26a269': '#1f7a4a', '#e66100': '#c64600', '#c01c28': '#a51d2d',
+  '#813d9c': '#613583', '#0f9a9a': '#0b6e72',
+};
 
 // Barcode types the app can draw. "id" is the name the drawing library (bwip-js) uses.
 const FORMATS = [
@@ -45,7 +51,9 @@ const $ = (id) => document.getElementById(id);
 
 function loadCards() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    const list = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    for (const c of list) if (OLD_COLORS[c.color]) c.color = OLD_COLORS[c.color];
+    return list;
   } catch {
     return [];
   }
@@ -72,7 +80,7 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
 
 // ---------- Moving between screens ----------
 
-const SCREENS = ['home', 'folder', 'scan', 'edit', 'show', 'shared'];
+const SCREENS = ['home', 'scan', 'edit', 'show', 'shared'];
 
 function showScreen(name) {
   for (const s of SCREENS) $(s).hidden = s !== name;
@@ -125,11 +133,17 @@ function drawBarcode(box, text, formatId) {
   }
 }
 
-// ---------- Screen 1: the main list (favorites, folders, other cards) ----------
+// ---------- Screen 1: the wallet (chips + stacked cards) ----------
 
-// The folder being looked at, or null on the main screen. New cards go into it,
-// and "back" from a card returns to it.
-let openFolder = null;
+// Which chip is picked: every card, the favorites, or one folder (by name).
+const ALL = '\u0000all';
+const FAVS = '\u0000favs';
+let view = ALL;
+
+// The folder chip that's picked, or '' — new cards go into it.
+function currentFolder() {
+  return view !== ALL && view !== FAVS ? view : '';
+}
 
 // Folders aren't stored separately — a folder exists while any card is in it.
 // Their order is kept in its own list; folders not in it go last, A–Z.
@@ -154,34 +168,76 @@ function folderNames() {
   return [...names].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 }
 
-function cardButton(card) {
-  const li = document.createElement('li');
-  li.dataset.id = card.id;
-  const btn = document.createElement('button');
-  btn.className = 'card';
-  btn.type = 'button';
-  btn.style.background = card.color;
-  const name = document.createElement('span');
-  name.textContent = card.name;
-  const sub = document.createElement('small');
-  sub.textContent = card.folder && $('search').value.trim() ? `${card.text} · ${card.folder}` : card.text;
-  name.appendChild(sub);
-  btn.appendChild(name);
-  if (card.favorite) {
-    const star = document.createElement('span');
-    star.className = 'star';
-    star.textContent = '★';
-    star.setAttribute('aria-label', 'Favorite');
-    btn.appendChild(star);
+const STAR_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
+const STAR_OUTLINE_SVG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+// Fills `face` (a .wcard) with a card's front: initial + name on top, number underneath.
+// `big` is the open card: it shows the star and the barcode type instead of the short number.
+function fillCardFace(face, card, big) {
+  face.textContent = '';
+  face.style.background = card.color;
+  const top = el('span', 'wc-row');
+  const id = el('span', 'wc-id');
+  id.append(el('span', 'wc-initial', ([...card.name][0] || '?').toUpperCase()), el('span', 'wc-name', card.name));
+  top.appendChild(id);
+  const bottom = el('span', 'wc-row bottom');
+  if (big) {
+    if (card.favorite) {
+      const star = el('span', 'wc-star');
+      star.innerHTML = STAR_SVG;
+      star.setAttribute('aria-label', 'Favorite');
+      top.appendChild(star);
+    }
+    const type = formatInfo(card.format).label.replace(/\s*\(.*\)$/, '');
+    bottom.append(el('span', 'wc-meta', card.folder ? `${card.folder} · ${type}` : type));
+  } else {
+    const short = card.text.length > 8 ? '…' + card.text.slice(-4) : card.text;
+    top.appendChild(el('span', 'wc-short', short));
+    bottom.append(el('span', 'wc-num', card.text), el('span', 'wc-meta', card.folder || ''));
   }
-  btn.addEventListener('click', () => { if (!reordering) openCard(card.id); });
-  li.append(btn, dragHandle());
+  face.append(top, bottom);
+}
+
+function stackCard(card) {
+  const li = el('li');
+  const btn = el('button', 'wcard');
+  btn.type = 'button';
+  fillCardFace(btn, card, false);
+  btn.addEventListener('click', () => openCard(card.id));
+  li.appendChild(btn);
   return li;
 }
 
-function fillList(list, someCards) {
-  list.textContent = '';
-  for (const card of someCards) list.appendChild(cardButton(card));
+function reorderRow(id, label, color) {
+  const li = el('li');
+  li.dataset.id = id;
+  const row = el('div', 'row-card', label);
+  if (color) row.style.background = color;
+  li.append(row, dragHandle());
+  return li;
+}
+
+function chip(value, label, count, starred) {
+  const btn = el('button', 'chip');
+  btn.type = 'button';
+  btn.setAttribute('aria-pressed', String(view === value));
+  if (starred) {
+    const star = el('span');
+    star.innerHTML = STAR_SVG;
+    star.style.cssText = 'display:flex;color:var(--accent)';
+    btn.appendChild(star);
+  }
+  btn.append(label);
+  if (count !== undefined) btn.appendChild(el('span', 'count', String(count)));
+  btn.addEventListener('click', () => { view = value; renderList(); });
+  return btn;
 }
 
 function matchesSearch(card, query) {
@@ -189,56 +245,58 @@ function matchesSearch(card, query) {
 }
 
 function renderList() {
-  const query = reordering ? '' : $('search').value.trim().toLowerCase();
-  const favorites = cards.filter((c) => c.favorite);
   const folders = folderNames();
-  // Favorites already show at the top, so don't list them twice on this screen.
-  const others = cards.filter((c) => !c.folder && !c.favorite);
-  const results = query ? cards.filter((c) => matchesSearch(c, query)) : [];
+  const favorites = cards.filter((c) => c.favorite);
+  // A chip whose folder (or favorites) has emptied falls back to All.
+  if ((view === FAVS && favorites.length === 0) || (currentFolder() && !folders.includes(view))) view = ALL;
+
+  const searching = !$('search-form').hidden;
+  const query = searching ? $('search').value.trim().toLowerCase() : '';
+  let shown;
+  if (query) shown = cards.filter((c) => matchesSearch(c, query));
+  else if (view === FAVS) shown = favorites;
+  else if (currentFolder()) shown = cards.filter((c) => c.folder === view);
+  else shown = cards;
 
   $('empty').hidden = cards.length > 0;
-  $('search-form').hidden = cards.length === 0 || reordering;
-  $('reorder-button').hidden = cards.length < 2 && !reordering;
-  $('search-section').hidden = !query;
-  $('fav-section').hidden = !!query || favorites.length === 0;
-  $('folder-section').hidden = !!query || folders.length === 0;
-  $('other-section').hidden = !!query || others.length === 0;
-  // With nothing else on screen, the "Other cards" heading would just be clutter.
-  $('other-title').hidden = favorites.length === 0 && folders.length === 0;
+  $('header-buttons').hidden = reordering;
+  $('reorder-done').hidden = !reordering;
 
-  fillList($('search-list'), results);
-  $('no-results').hidden = !query || results.length > 0;
+  // Chips: All, Favorites (when there are any), then each folder.
+  const chips = $('chips');
+  chips.textContent = '';
+  chips.hidden = cards.length === 0 || !!query || (folders.length === 0 && favorites.length === 0);
+  chips.appendChild(chip(ALL, 'All', cards.length));
+  if (favorites.length) chips.appendChild(chip(FAVS, 'Favorites', undefined, true));
+  for (const name of folders) chips.appendChild(chip(name, name, cards.filter((c) => c.folder === name).length));
+  $('folder-tools').hidden = !currentFolder() || reordering || !!query;
+
+  const stack = $('stack');
+  stack.textContent = '';
+  stack.hidden = reordering;
+  for (const card of shown) stack.appendChild(stackCard(card));
+
+  const list = $('reorder-list');
+  list.textContent = '';
+  list.hidden = !reordering;
+  if (reordering) for (const card of shown) list.appendChild(reorderRow(card.id, card.name, card.color));
+
+  const folderOrderList = $('folder-order');
+  folderOrderList.textContent = '';
+  $('reorder-folders').hidden = !reordering || view !== ALL || folders.length < 2;
+  for (const name of folders) folderOrderList.appendChild(reorderRow(name, name));
+
+  $('no-results').hidden = !query || shown.length > 0;
   $('no-results').textContent = `No cards match “${$('search').value.trim()}”`;
-  fillList($('fav-list'), favorites);
-  fillList($('other-list'), others);
 
-  const folderList = $('folder-list');
-  folderList.textContent = '';
-  for (const name of folders) {
-    const li = document.createElement('li');
-    li.dataset.id = name;
-    const btn = document.createElement('button');
-    btn.className = 'folder-row';
-    btn.type = 'button';
-    const label = document.createElement('span');
-    label.className = 'folder-name';
-    label.textContent = name;
-    const count = document.createElement('span');
-    count.className = 'folder-count';
-    count.textContent = `${cards.filter((c) => c.folder === name).length} ›`;
-    btn.append(label, count);
-    btn.addEventListener('click', () => { if (!reordering) openFolderView(name); });
-    li.append(btn, dragHandle());
-    folderList.appendChild(li);
-  }
-
+  $('home-foot').hidden = reordering;
+  $('reorder-button').hidden = cards.length < 2;
+  $('backup-button').hidden = cards.length === 0;
   renderBackupStatus();
-  if (openFolder) renderFolder();
 }
 
 function goHome() {
   setReordering(false);
-  openFolder = null;
   renderList();
   showScreen('home');
 }
@@ -250,18 +308,58 @@ $('version').textContent = `Version ${APP_VERSION} · ` +
 
 $('add-button').addEventListener('click', startScan);
 
+// ---------- Search ----------
+
+$('search-toggle').addEventListener('click', () => {
+  $('search-form').hidden = false;
+  $('search').focus();
+  renderList();
+});
+$('search-cancel').addEventListener('click', () => {
+  $('search').value = '';
+  $('search-form').hidden = true;
+  renderList();
+});
 $('search').addEventListener('input', renderList);
 // The keyboard's "Search" key just closes the keyboard; results are already showing.
 $('search-form').addEventListener('submit', (e) => { e.preventDefault(); $('search').blur(); });
+
+// ---------- Folder chip tools ----------
+
+$('folder-rename').addEventListener('click', () => {
+  const oldName = currentFolder();
+  const newName = (prompt('Rename folder', oldName) || '').trim();
+  if (!newName || newName === oldName) return;
+  const merging = folderNames().includes(newName);
+  const order = folderNames();
+  for (const c of cards) if (c.folder === oldName) c.folder = newName;
+  saveCards(cards);
+  // Keep the folder in the same spot (or drop the old name when merging into another folder).
+  saveFolderOrder(merging ? order.filter((n) => n !== oldName) : order.map((n) => (n === oldName ? newName : n)));
+  if (merging) toast(`Moved into the existing “${newName}” folder`);
+  view = newName;
+  renderList();
+});
+
+$('folder-delete').addEventListener('click', () => {
+  const name = currentFolder();
+  const inFolder = cards.filter((c) => c.folder === name);
+  const n = inFolder.length;
+  if (!confirm(`Delete the folder “${name}”?\n\nIts ${n} card${n === 1 ? '' : 's'} won’t be deleted — they stay under All.`)) return;
+  for (const c of inFolder) c.folder = '';
+  saveCards(cards);
+  saveFolderOrder(folderOrder.filter((f) => f !== name));
+  toast('Folder deleted — cards kept');
+  view = ALL;
+  renderList();
+});
 
 // ---------- Reordering (drag the ≡ handles) ----------
 
 let reordering = false;
 
 function dragHandle() {
-  const handle = document.createElement('span');
-  handle.className = 'handle';
-  handle.textContent = '≡';
+  const handle = el('span', 'handle', '≡');
   handle.setAttribute('aria-label', 'Drag to reorder');
   return handle;
 }
@@ -270,26 +368,29 @@ function setReordering(on) {
   if (reordering === on) return;
   reordering = on;
   document.body.classList.toggle('reordering', on);
-  $('reorder-button').textContent = on ? 'Done' : 'Reorder';
-  $('folder-reorder').textContent = on ? 'Done' : 'Reorder';
-  if (on) { $('search').value = ''; $('search').blur(); }
+  if (on) { $('search').value = ''; $('search-form').hidden = true; }
   renderList();
+  window.scrollTo(0, 0);
 }
 
-$('reorder-button').addEventListener('click', () => setReordering(!reordering));
-$('folder-reorder').addEventListener('click', () => setReordering(!reordering));
+$('reorder-button').addEventListener('click', () => setReordering(true));
+$('reorder-done').addEventListener('click', () => setReordering(false));
 
 // Moves the list's items to follow the finger, then reports the new order of ids.
+// Moving an item in the page makes the browser drop its hold on the finger, so the
+// rest of the drag is followed on the whole document, matched by pointer id.
 function makeSortable(list, onReordered) {
   list.addEventListener('pointerdown', (e) => {
     const handle = e.target.closest('.handle');
     if (!handle || !reordering) return;
     e.preventDefault();
+    const pointer = e.pointerId;
     const item = handle.closest('li');
     item.classList.add('dragging');
-    handle.setPointerCapture(e.pointerId);
 
     const move = (ev) => {
+      if (ev.pointerId !== pointer) return;
+      ev.preventDefault();
       const y = ev.clientY;
       for (const other of list.children) {
         if (other === item) continue;
@@ -303,16 +404,17 @@ function makeSortable(list, onReordered) {
       if (y < 70) window.scrollBy(0, -12);
       else if (y > window.innerHeight - 70) window.scrollBy(0, 12);
     };
-    const end = () => {
+    const end = (ev) => {
+      if (ev.pointerId !== pointer) return;
       item.classList.remove('dragging');
-      handle.removeEventListener('pointermove', move);
-      handle.removeEventListener('pointerup', end);
-      handle.removeEventListener('pointercancel', end);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', end);
+      document.removeEventListener('pointercancel', end);
       onReordered([...list.children].map((li) => li.dataset.id));
     };
-    handle.addEventListener('pointermove', move);
-    handle.addEventListener('pointerup', end);
-    handle.addEventListener('pointercancel', end);
+    document.addEventListener('pointermove', move, { passive: false });
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
   });
 }
 
@@ -327,57 +429,8 @@ function applyCardOrder(ids) {
   renderList();
 }
 
-makeSortable($('fav-list'), applyCardOrder);
-makeSortable($('other-list'), applyCardOrder);
-makeSortable($('folder-cards'), applyCardOrder);
-makeSortable($('folder-list'), (names) => { saveFolderOrder(names); renderList(); });
-
-// ---------- Screen 1b: inside a folder ----------
-
-function openFolderView(name) {
-  setReordering(false);
-  openFolder = name;
-  if (!renderFolder()) return;
-  showScreen('folder');
-}
-
-// Returns false (and goes home) if the folder has no cards left.
-function renderFolder() {
-  const inFolder = cards.filter((c) => c.folder === openFolder);
-  if (inFolder.length === 0) { goHome(); return false; }
-  $('folder-name').textContent = openFolder;
-  $('folder-reorder').hidden = inFolder.length < 2 && !reordering;
-  fillList($('folder-cards'), inFolder);
-  return true;
-}
-
-$('folder-back').addEventListener('click', goHome);
-$('folder-add').addEventListener('click', startScan);
-
-$('folder-rename').addEventListener('click', () => {
-  const newName = (prompt('Rename folder', openFolder) || '').trim();
-  if (!newName || newName === openFolder) return;
-  const merging = folderNames().includes(newName);
-  const order = folderNames();
-  for (const c of cards) if (c.folder === openFolder) c.folder = newName;
-  saveCards(cards);
-  // Keep the folder in the same spot (or drop the old name when merging into another folder).
-  saveFolderOrder(merging ? order.filter((n) => n !== openFolder) : order.map((n) => (n === openFolder ? newName : n)));
-  if (merging) toast(`Moved into the existing “${newName}” folder`);
-  openFolderView(newName);
-  renderList();
-});
-
-$('folder-delete').addEventListener('click', () => {
-  const inFolder = cards.filter((c) => c.folder === openFolder);
-  const n = inFolder.length;
-  if (!confirm(`Delete the folder “${openFolder}”?\n\nIts ${n} card${n === 1 ? '' : 's'} won’t be deleted — they move to Other cards.`)) return;
-  for (const c of inFolder) c.folder = '';
-  saveCards(cards);
-  saveFolderOrder(folderOrder.filter((name) => name !== openFolder));
-  toast(`Folder deleted — cards kept`);
-  goHome();
-});
+makeSortable($('reorder-list'), applyCardOrder);
+makeSortable($('folder-order'), (names) => { saveFolderOrder(names); renderList(); });
 
 // ---------- Screen 2: scanning ----------
 
@@ -433,7 +486,7 @@ function stopScan() {
 
 $('scan-cancel').addEventListener('click', () => {
   stopScan();
-  showScreen(openFolder ? 'folder' : 'home');
+  goHome();
 });
 $('type-instead').addEventListener('click', () => { stopScan(); openEditor(null, { text: '', format: 'code128' }); });
 
@@ -496,7 +549,7 @@ function openEditor(id, fresh) {
   $('f-name').value = card ? card.name : fresh.name || '';
   $('f-text').value = card ? card.text : fresh.text;
   $('f-format').value = card ? card.format : fresh.format;
-  fillFolderMenu(card ? card.folder || '' : openFolder || '');
+  fillFolderMenu(card ? card.folder || '' : currentFolder());
   $('f-favorite').checked = card ? !!card.favorite : false;
   pickColor(card ? card.color : fresh.color || COLORS[cards.length % COLORS.length]);
   $('edit-delete').hidden = !card;
@@ -541,15 +594,14 @@ function saveEdit() {
 $('edit-save').addEventListener('click', saveEdit);
 $('edit-form').addEventListener('submit', (e) => { e.preventDefault(); saveEdit(); });
 $('edit-cancel').addEventListener('click', () => {
-  if (editingId) openCard(editingId); else showScreen(openFolder ? 'folder' : 'home');
+  if (editingId) openCard(editingId); else goHome();
 });
 $('edit-delete').addEventListener('click', () => {
   const card = cards.find((c) => c.id === editingId);
   if (!card || !confirm(`Delete “${card.name}”? This can’t be undone.`)) return;
   cards = cards.filter((c) => c.id !== editingId);
   saveCards(cards);
-  renderList();
-  showScreen(openFolder ? 'folder' : 'home'); // renderList already went home if the folder emptied
+  goHome();
   toast(`Deleted ${card.name}`);
 });
 
@@ -563,10 +615,7 @@ function openCard(id) {
   if (!card) { showScreen('home'); return; }
   setReordering(false);
   shownId = id;
-  // A card opened from a folder goes back to that folder; if it has since moved out, go to the main list.
-  if (openFolder && card.folder !== openFolder) openFolder = null;
-  $('show-back').textContent = `‹ ${openFolder || 'Cards'}`;
-  $('show-name').textContent = card.name;
+  fillCardFace($('show-card'), card, true);
   $('show-text').textContent = card.text;
   showFavorite(card);
   drawBarcode($('show-barcode'), card.text, card.format);
@@ -575,7 +624,7 @@ function openCard(id) {
 }
 
 function showFavorite(card) {
-  $('show-fav').textContent = card.favorite ? '★ In Favorites' : '☆ Add to Favorites';
+  $('show-fav').innerHTML = (card.favorite ? STAR_SVG.replace('width="20" height="20"', 'width="22" height="22"') : STAR_OUTLINE_SVG) + 'Favorite';
   $('show-fav').setAttribute('aria-pressed', String(!!card.favorite));
 }
 
@@ -585,7 +634,15 @@ $('show-fav').addEventListener('click', () => {
   card.favorite = !card.favorite;
   saveCards(cards);
   showFavorite(card);
+  fillCardFace($('show-card'), card, true);
   renderList();
+});
+
+$('show-copy').addEventListener('click', async () => {
+  const card = cards.find((c) => c.id === shownId);
+  if (!card) return;
+  if (await copyText(card.text)) toast('Number copied');
+  else prompt('Copy the number:', card.text);
 });
 
 // Stops the phone's screen going dark while you're waiting in line.
@@ -610,7 +667,7 @@ document.addEventListener('visibilitychange', () => {
 
 $('show-back').addEventListener('click', () => {
   letScreenSleep();
-  if (openFolder) openFolderView(openFolder); else goHome();
+  goHome();
 });
 $('show-edit').addEventListener('click', () => { letScreenSleep(); openEditor(shownId); });
 
@@ -672,7 +729,7 @@ function cleanCard(raw) {
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Card',
     text: raw.text.trim(),
     format: raw.format,
-    color: typeof raw.color === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color) ? raw.color : COLORS[0],
+    color: typeof raw.color === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color) ? OLD_COLORS[raw.color] || raw.color : COLORS[0],
     folder: typeof raw.folder === 'string' ? raw.folder.trim() : '',
     favorite: raw.favorite === true,
     created: typeof raw.created === 'string' ? raw.created : new Date().toISOString(),
@@ -829,7 +886,7 @@ function openSharedLink() {
   if (installed) { addSharedCard(card); return true; }
 
   pendingShared = card;
-  $('shared-name').textContent = card.name;
+  fillCardFace($('shared-card'), card, true);
   $('shared-text').textContent = card.text;
   drawBarcode($('shared-barcode'), card.text, card.format);
   showScreen('shared');

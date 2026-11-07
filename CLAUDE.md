@@ -7,6 +7,11 @@ show it full-screen at a scanner later. Hosted free on GitHub Pages from the
 The owner is a complete beginner to app-making: explain steps plainly, suggest
 `! command` for anything they must run themselves, and keep the code simple.
 
+- **Look: "Wallet"** (chosen by the owner from a design canvas, 2026-11-07): always dark,
+  cards stacked like plastic cards (66px strips, last one in full), chips filter All /
+  Favorites / each folder, orange accent `#ffb340`. Fonts Space Grotesk + JetBrains Mono,
+  self-hosted in `fonts/` (OFL) so it works offline. Card colours are the deep set in
+  `COLORS`; pre-v6 bright colours are mapped by `OLD_COLORS` on load / restore / share.
 - Plain HTML/CSS/JS, no build step, no npm. Files: `index.html`, `style.css`,
   `app.js`, `sw.js` (offline cache), `manifest.webmanifest`, `icons/`.
 - Libraries are copied into `vendor/` (no CDN, so it works offline):
@@ -21,8 +26,10 @@ The owner is a complete beginner to app-making: explain steps plainly, suggest
   is `barcode-folder-order` (folders missing from it sort last, A–Z); backups carry it as
   `folderOrder`. Card order is the order of the `cards` array; reordering a filtered list
   (favorites, a folder) writes the new order back into those cards' existing slots.
-- Reorder = drag `.handle` with pointer events (`touch-action: none`); search filters name,
-  number and folder.
+- Reorder mode shows a flat list (`#reorder-list`) of the current chip's cards, plus folder
+  order when on All. Drag = pointer events on `.handle` (`touch-action: none`), followed on
+  `document` by pointer id — moving the node drops pointer capture, so never rely on it.
+  Test drags across several places, not just one. Search filters name, number and folder.
 - Backup = JSON `{ app: 'Barcodes', backupFormat: 1, appVersion, created, cards }`, sent via
   the Share sheet on iPhone (download on computers). Restore only ever **adds** cards,
   skipping ones with the same id or same text+format — it never deletes or overwrites.

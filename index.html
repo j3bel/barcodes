@@ -12,75 +12,70 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Barcodes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#f6f5f4" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1e1e1e" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0e0e10">
 
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Screen 1: the list of saved cards -->
+  <!-- Screen 1: the wallet — chips to filter, cards stacked like real cards -->
   <main id="home" class="screen">
     <header class="home-bar">
       <h1>Barcodes</h1>
-      <button id="reorder-button" class="link" type="button" hidden>Reorder</button>
+      <div id="header-buttons" class="round-buttons">
+        <button id="search-toggle" class="round" type="button" aria-label="Search cards">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        </button>
+        <button id="add-button" class="round accent" type="button" aria-label="Add card">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <button id="reorder-done" class="nav-link strong" type="button" hidden>Done</button>
     </header>
+
     <form id="search-form" class="search" role="search" hidden>
       <input id="search" type="search" placeholder="Search cards" autocomplete="off" enterkeyhint="search" aria-label="Search cards">
+      <button id="search-cancel" class="nav-link" type="button">Cancel</button>
     </form>
-    <p class="reorder-hint">Drag <strong>≡</strong> to move cards and folders. Tap <strong>Done</strong> when finished.</p>
-    <section id="search-section" class="group" hidden>
-      <ul id="search-list" class="card-list"></ul>
-      <p id="no-results" class="empty-search" hidden></p>
+
+    <div id="chips" class="chips" hidden></div>
+
+    <div id="folder-tools" class="folder-tools" hidden>
+      <button id="folder-rename" class="text-button" type="button">Rename folder</button>
+      <button id="folder-delete" class="text-button danger-text" type="button">Delete folder</button>
+    </div>
+
+    <p class="reorder-hint">Drag <strong>≡</strong> to move. Tap <strong>Done</strong> when finished.</p>
+
+    <ul id="stack" class="stack"></ul>
+    <ul id="reorder-list" class="reorder-list" hidden></ul>
+    <section id="reorder-folders" class="group" hidden>
+      <h3 class="group-title">Folder order</h3>
+      <ul id="folder-order" class="folder-list"></ul>
     </section>
-    <section id="fav-section" class="group" hidden>
-      <h3 class="group-title">★ Favorites</h3>
-      <ul id="fav-list" class="card-list"></ul>
-    </section>
-    <section id="folder-section" class="group" hidden>
-      <h3 class="group-title">Folders</h3>
-      <ul id="folder-list" class="folder-list"></ul>
-    </section>
-    <section id="other-section" class="group" hidden>
-      <h3 id="other-title" class="group-title">Other cards</h3>
-      <ul id="other-list" class="card-list"></ul>
-    </section>
+    <p id="no-results" class="empty-search" hidden></p>
+
     <div id="empty" class="empty" hidden>
       <p class="empty-title">No cards yet</p>
-      <p>Tap <strong>Add</strong> to scan your first barcode.</p>
+      <p>Tap the orange <strong>＋</strong> to scan your first barcode.</p>
     </div>
-    <div class="backup">
-      <button id="backup-button" class="link" type="button">Back up cards</button>
-      <span class="dot" aria-hidden="true">·</span>
-      <button id="restore-button" class="link" type="button">Restore from backup</button>
+
+    <footer id="home-foot" class="home-foot">
+      <div class="foot-links">
+        <button id="reorder-button" class="text-button" type="button">Reorder</button>
+        <button id="backup-button" class="text-button" type="button">Back up</button>
+        <button id="restore-button" class="text-button" type="button">Restore</button>
+      </div>
       <input id="restore-file" type="file" accept=".json,application/json" hidden>
-      <p id="backup-status" class="backup-status"></p>
-    </div>
-    <p id="version" class="version"></p>
-    <button id="add-button" class="fab" type="button">＋ Add</button>
+      <p class="foot-status"><span id="backup-status"></span><span id="version"></span></p>
+    </footer>
   </main>
 
-  <!-- Screen 1b: the cards inside one folder -->
-  <section id="folder" class="screen" hidden>
-    <header class="bar">
-      <button id="folder-back" class="link" type="button">‹ Cards</button>
-      <h2 id="folder-name"></h2>
-      <button id="folder-reorder" class="link" type="button">Reorder</button>
-    </header>
-    <p class="reorder-hint">Drag <strong>≡</strong> to move cards. Tap <strong>Done</strong> when finished.</p>
-    <ul id="folder-cards" class="card-list"></ul>
-    <div class="folder-actions">
-      <button id="folder-rename" class="danger plain" type="button">Rename folder</button>
-      <button id="folder-delete" class="danger" type="button">Delete folder</button>
-    </div>
-    <button id="folder-add" class="fab" type="button">＋ Add</button>
-  </section>
-
   <!-- Screen 2: scanning with the camera -->
-  <section id="scan" class="screen dark" hidden>
+  <section id="scan" class="screen" hidden>
     <header class="bar">
-      <button id="scan-cancel" class="link" type="button">Cancel</button>
+      <button id="scan-cancel" class="nav-link" type="button">Cancel</button>
       <h2>Scan a barcode</h2>
       <span></span>
     </header>
@@ -89,16 +84,18 @@
       <div class="frame" aria-hidden="true"></div>
     </div>
     <p id="scan-message" class="scan-message">Point the camera at the barcode.</p>
-    <button id="type-instead" class="link light" type="button">Type the number in instead</button>
-    <button id="paste-shared" class="link light" type="button">Paste a shared card</button>
+    <div class="scan-options">
+      <button id="type-instead" class="pill" type="button">Type the number in</button>
+      <button id="paste-shared" class="pill" type="button">Paste a shared card</button>
+    </div>
   </section>
 
   <!-- Screen 3: name the card and save it -->
   <section id="edit" class="screen" hidden>
     <header class="bar">
-      <button id="edit-cancel" class="link" type="button">Cancel</button>
+      <button id="edit-cancel" class="nav-link" type="button">Cancel</button>
       <h2 id="edit-title">New card</h2>
-      <button id="edit-save" class="link strong" type="button">Save</button>
+      <button id="edit-save" class="nav-link strong" type="button">Save</button>
     </header>
     <form id="edit-form" class="form" autocomplete="off">
       <label>Name
@@ -115,7 +112,7 @@
       </label>
       <label class="check">
         <input id="f-favorite" type="checkbox">
-        <span>★ Show in Favorites</span>
+        <span>Show in Favorites</span>
       </label>
       <fieldset class="colors">
         <legend>Colour</legend>
@@ -128,22 +125,33 @@
     </form>
   </section>
 
-  <!-- Screen 4: show a card big, ready for the scanner -->
+  <!-- Screen 4: show a card, ready for the scanner -->
   <section id="show" class="screen" hidden>
     <header class="bar">
-      <button id="show-back" class="link" type="button">‹ Cards</button>
-      <h2 id="show-name"></h2>
-      <button id="show-edit" class="link" type="button">Edit</button>
+      <button id="show-back" class="nav-link back" type="button">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        Cards
+      </button>
+      <span></span>
+      <button id="show-edit" class="nav-link" type="button">Edit</button>
     </header>
-    <div class="show-body">
-      <div id="show-barcode" class="barcode-box big"></div>
+    <div id="show-card" class="wcard big"></div>
+    <div class="barcode-panel">
+      <div id="show-barcode" class="barcode-box"></div>
       <p id="show-text" class="show-text"></p>
-      <div class="actions">
-        <button id="show-fav" class="fav-toggle" type="button"></button>
-        <button id="show-share" class="fav-toggle" type="button">Share</button>
-      </div>
-      <p class="tip">Tip: turn your screen brightness up — scanners read it more easily.</p>
     </div>
+    <div class="action-grid">
+      <button id="show-fav" class="action" type="button"></button>
+      <button id="show-share" class="action" type="button">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 00-1 1v8a1 1 0 001 1h14a1 1 0 001-1v-8a1 1 0 00-1-1h-1"/></svg>
+        Share
+      </button>
+      <button id="show-copy" class="action" type="button">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg>
+        Copy number
+      </button>
+    </div>
+    <p class="tip">The screen stays on while a card is open. If a scanner struggles, turn the brightness up.</p>
   </section>
 
   <!-- Screen 5: someone opened a shared-card link (in Safari, not the Home Screen app) -->
@@ -153,22 +161,22 @@
       <h2>Shared card</h2>
       <span></span>
     </header>
-    <div class="show-body">
-      <p id="shared-name" class="shared-name"></p>
-      <div id="shared-barcode" class="barcode-box big"></div>
+    <div id="shared-card" class="wcard big"></div>
+    <div class="barcode-panel">
+      <div id="shared-barcode" class="barcode-box"></div>
       <p id="shared-text" class="show-text"></p>
-      <div class="steps">
-        <p><strong>To add it to your Barcodes app:</strong></p>
-        <ol>
-          <li>Tap <strong>Copy card</strong> below.</li>
-          <li>Open <strong>Barcodes</strong> from your Home Screen.</li>
-          <li>Tap <strong>＋ Add</strong>, then <strong>Paste a shared card</strong>.</li>
-        </ol>
-      </div>
-      <button id="shared-copy" class="primary" type="button">Copy card</button>
-      <p class="tip">Don’t have the app yet? Tap <strong>Share</strong> → <strong>Add to Home Screen</strong> first, then follow the steps.</p>
-      <button id="shared-here" class="link" type="button">Or save it in this browser instead</button>
     </div>
+    <div class="steps">
+      <p><strong>To add it to your Barcodes app:</strong></p>
+      <ol>
+        <li>Tap <strong>Copy card</strong> below.</li>
+        <li>Open <strong>Barcodes</strong> from your Home Screen.</li>
+        <li>Tap the orange <strong>＋</strong>, then <strong>Paste a shared card</strong>.</li>
+      </ol>
+    </div>
+    <button id="shared-copy" class="primary" type="button">Copy card</button>
+    <p class="tip">Don’t have the app yet? Tap <strong>Share</strong> → <strong>Add to Home Screen</strong> first, then follow the steps.</p>
+    <button id="shared-here" class="nav-link center" type="button">Or save it in this browser instead</button>
   </section>
 
   <div id="toast" class="toast" role="status" hidden></div>

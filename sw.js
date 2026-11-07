@@ -2,7 +2,7 @@
 // It shows the saved copy first, then quietly fetches any update for next time.
 // When you change the app, bump VERSION (keep it the same as APP_VERSION in app.js).
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 const FILES = [
   './',
   'index.html',
@@ -15,6 +15,9 @@ const FILES = [
   'icons/icon-512.png',
   'vendor/zxing-0.23.0.min.js',
   'vendor/bwip-js-4.11.4.min.js',
+  'fonts/space-grotesk-latin-600-normal.woff2',
+  'fonts/space-grotesk-latin-700-normal.woff2',
+  'fonts/jetbrains-mono-latin-500-normal.woff2',
 ];
 
 self.addEventListener('install', (event) => {

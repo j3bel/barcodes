@@ -1,16 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#1c71d8"/>
-  <rect x="96" y="136" width="320" height="240" rx="28" fill="#fff"/>
-  <g fill="#1e1e1e">
-    <rect x="132" y="172" width="16" height="168"/>
-    <rect x="160" y="172" width="8" height="168"/>
-    <rect x="180" y="172" width="24" height="168"/>
-    <rect x="216" y="172" width="8" height="168"/>
-    <rect x="236" y="172" width="16" height="168"/>
-    <rect x="264" y="172" width="8" height="168"/>
-    <rect x="284" y="172" width="24" height="168"/>
-    <rect x="320" y="172" width="8" height="168"/>
-    <rect x="340" y="172" width="8" height="168"/>
-    <rect x="360" y="172" width="20" height="168"/>
+  <rect width="512" height="512" fill="#0e0e10"/>
+  <rect x="88" y="104" width="336" height="212" rx="32" fill="#c64600"/>
+  <rect x="88" y="168" width="336" height="212" rx="32" fill="#1a5fb4"/>
+  <rect x="88" y="232" width="336" height="190" rx="32" fill="#ffffff"/>
+  <g fill="#0e0e10">
+    <rect x="132" y="272" width="14" height="110"/>
+    <rect x="158" y="272" width="7" height="110"/>
+    <rect x="177" y="272" width="21" height="110"/>
+    <rect x="210" y="272" width="7" height="110"/>
+    <rect x="229" y="272" width="14" height="110"/>
+    <rect x="255" y="272" width="7" height="110"/>
+    <rect x="274" y="272" width="21" height="110"/>
+    <rect x="307" y="272" width="7" height="110"/>
+    <rect x="326" y="272" width="7" height="110"/>
+    <rect x="345" y="272" width="14" height="110"/>
+    <rect x="369" y="272" width="10" height="110"/>
   </g>
 </svg>
