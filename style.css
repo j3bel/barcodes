@@ -99,7 +99,42 @@ button { font: inherit; cursor: pointer; }
 .folder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-count { color: var(--muted); }
 #folder .card-list { margin-bottom: 0; }
-.folder-delete { width: 100%; margin: 24px 0 96px; }
+/* Folder screen: Rename and Delete side by side at the bottom */
+.folder-actions { display: flex; gap: 10px; margin: 24px 0 96px; }
+.folder-actions .danger { flex: 1; margin: 0; }
+.danger.plain { color: var(--fg); }
+
+/* Main screen title row and search */
+.home-bar {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding-top: 12px;
+}
+.home-bar h1 { font-size: 32px; margin: 0 0 4px; }
+.search { margin-top: 8px; }
+.search input {
+  width: 100%; font: inherit; color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  -webkit-appearance: none; appearance: none;
+}
+.empty-search { text-align: center; color: var(--muted); margin-top: 24px; }
+
+/* Reordering: show ≡ handles, hide things that would get in the way */
+.card-list li, .folder-list li { position: relative; }
+.handle {
+  display: none; position: absolute; right: 0; top: 0; bottom: 0; width: 56px;
+  align-items: center; justify-content: center;
+  font-size: 26px; color: #fff; cursor: grab;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.folder-list .handle { color: var(--muted); }
+.reordering .handle { display: flex; }
+.reordering .card .star, .reordering .folder-count { visibility: hidden; }
+.reordering .fab, .reordering .backup { display: none; }
+.reordering .version { margin-top: 32px; }
+.reorder-hint { display: none; color: var(--muted); font-size: 14px; margin: 8px 4px 0; }
+.reordering .reorder-hint { display: block; }
+.dragging { opacity: .85; transform: scale(1.02); z-index: 1; }
+.dragging .card, .dragging .folder-row { box-shadow: 0 8px 20px rgba(0, 0, 0, .3); }
 
 /* Backup links, then room for the floating Add button below the version line */
 .backup { text-align: center; margin-top: 32px; font-size: 15px; }

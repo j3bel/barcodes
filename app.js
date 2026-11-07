@@ -5,7 +5,7 @@
 
 // Shown at the bottom of the main screen. Change both when you publish an update,
 // and set VERSION in sw.js to match.
-const APP_VERSION = 4;
+const APP_VERSION = 5;
 const APP_DATE = '2026-11-07';
 
 const STORAGE_KEY = 'barcode-cards-v1';
@@ -132,13 +132,31 @@ function drawBarcode(box, text, formatId) {
 let openFolder = null;
 
 // Folders aren't stored separately — a folder exists while any card is in it.
+// Their order is kept in its own list; folders not in it go last, A–Z.
+const FOLDER_ORDER_KEY = 'barcode-folder-order';
+let folderOrder = (() => {
+  try {
+    const list = JSON.parse(localStorage.getItem(FOLDER_ORDER_KEY));
+    return Array.isArray(list) ? list.filter((n) => typeof n === 'string') : [];
+  } catch {
+    return [];
+  }
+})();
+
+function saveFolderOrder(names) {
+  folderOrder = names;
+  try { localStorage.setItem(FOLDER_ORDER_KEY, JSON.stringify(names)); } catch { /* fine */ }
+}
+
 function folderNames() {
   const names = new Set(cards.map((c) => c.folder).filter(Boolean));
-  return [...names].sort((a, b) => a.localeCompare(b));
+  const rank = (n) => { const i = folderOrder.indexOf(n); return i === -1 ? Infinity : i; };
+  return [...names].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 }
 
 function cardButton(card) {
   const li = document.createElement('li');
+  li.dataset.id = card.id;
   const btn = document.createElement('button');
   btn.className = 'card';
   btn.type = 'button';
@@ -146,7 +164,7 @@ function cardButton(card) {
   const name = document.createElement('span');
   name.textContent = card.name;
   const sub = document.createElement('small');
-  sub.textContent = card.text;
+  sub.textContent = card.folder && $('search').value.trim() ? `${card.text} · ${card.folder}` : card.text;
   name.appendChild(sub);
   btn.appendChild(name);
   if (card.favorite) {
@@ -156,8 +174,8 @@ function cardButton(card) {
     star.setAttribute('aria-label', 'Favorite');
     btn.appendChild(star);
   }
-  btn.addEventListener('click', () => openCard(card.id));
-  li.appendChild(btn);
+  btn.addEventListener('click', () => { if (!reordering) openCard(card.id); });
+  li.append(btn, dragHandle());
   return li;
 }
 
@@ -166,19 +184,31 @@ function fillList(list, someCards) {
   for (const card of someCards) list.appendChild(cardButton(card));
 }
 
+function matchesSearch(card, query) {
+  return [card.name, card.text, card.folder || ''].some((s) => s.toLowerCase().includes(query));
+}
+
 function renderList() {
+  const query = reordering ? '' : $('search').value.trim().toLowerCase();
   const favorites = cards.filter((c) => c.favorite);
   const folders = folderNames();
   // Favorites already show at the top, so don't list them twice on this screen.
   const others = cards.filter((c) => !c.folder && !c.favorite);
+  const results = query ? cards.filter((c) => matchesSearch(c, query)) : [];
 
   $('empty').hidden = cards.length > 0;
-  $('fav-section').hidden = favorites.length === 0;
-  $('folder-section').hidden = folders.length === 0;
-  $('other-section').hidden = others.length === 0;
+  $('search-form').hidden = cards.length === 0 || reordering;
+  $('reorder-button').hidden = cards.length < 2 && !reordering;
+  $('search-section').hidden = !query;
+  $('fav-section').hidden = !!query || favorites.length === 0;
+  $('folder-section').hidden = !!query || folders.length === 0;
+  $('other-section').hidden = !!query || others.length === 0;
   // With nothing else on screen, the "Other cards" heading would just be clutter.
   $('other-title').hidden = favorites.length === 0 && folders.length === 0;
 
+  fillList($('search-list'), results);
+  $('no-results').hidden = !query || results.length > 0;
+  $('no-results').textContent = `No cards match “${$('search').value.trim()}”`;
   fillList($('fav-list'), favorites);
   fillList($('other-list'), others);
 
@@ -186,6 +216,7 @@ function renderList() {
   folderList.textContent = '';
   for (const name of folders) {
     const li = document.createElement('li');
+    li.dataset.id = name;
     const btn = document.createElement('button');
     btn.className = 'folder-row';
     btn.type = 'button';
@@ -196,8 +227,8 @@ function renderList() {
     count.className = 'folder-count';
     count.textContent = `${cards.filter((c) => c.folder === name).length} ›`;
     btn.append(label, count);
-    btn.addEventListener('click', () => openFolderView(name));
-    li.appendChild(btn);
+    btn.addEventListener('click', () => { if (!reordering) openFolderView(name); });
+    li.append(btn, dragHandle());
     folderList.appendChild(li);
   }
 
@@ -206,6 +237,7 @@ function renderList() {
 }
 
 function goHome() {
+  setReordering(false);
   openFolder = null;
   renderList();
   showScreen('home');
@@ -218,9 +250,92 @@ $('version').textContent = `Version ${APP_VERSION} · ` +
 
 $('add-button').addEventListener('click', startScan);
 
+$('search').addEventListener('input', renderList);
+// The keyboard's "Search" key just closes the keyboard; results are already showing.
+$('search-form').addEventListener('submit', (e) => { e.preventDefault(); $('search').blur(); });
+
+// ---------- Reordering (drag the ≡ handles) ----------
+
+let reordering = false;
+
+function dragHandle() {
+  const handle = document.createElement('span');
+  handle.className = 'handle';
+  handle.textContent = '≡';
+  handle.setAttribute('aria-label', 'Drag to reorder');
+  return handle;
+}
+
+function setReordering(on) {
+  if (reordering === on) return;
+  reordering = on;
+  document.body.classList.toggle('reordering', on);
+  $('reorder-button').textContent = on ? 'Done' : 'Reorder';
+  $('folder-reorder').textContent = on ? 'Done' : 'Reorder';
+  if (on) { $('search').value = ''; $('search').blur(); }
+  renderList();
+}
+
+$('reorder-button').addEventListener('click', () => setReordering(!reordering));
+$('folder-reorder').addEventListener('click', () => setReordering(!reordering));
+
+// Moves the list's items to follow the finger, then reports the new order of ids.
+function makeSortable(list, onReordered) {
+  list.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.handle');
+    if (!handle || !reordering) return;
+    e.preventDefault();
+    const item = handle.closest('li');
+    item.classList.add('dragging');
+    handle.setPointerCapture(e.pointerId);
+
+    const move = (ev) => {
+      const y = ev.clientY;
+      for (const other of list.children) {
+        if (other === item) continue;
+        const box = other.getBoundingClientRect();
+        const middle = box.top + box.height / 2;
+        const itemIsAfter = item.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_PRECEDING;
+        if (itemIsAfter && y < middle) { list.insertBefore(item, other); break; }
+        if (!itemIsAfter && y > middle && other === item.nextElementSibling) { list.insertBefore(item, other.nextElementSibling); break; }
+      }
+      // Scroll when dragging near the top or bottom of the screen.
+      if (y < 70) window.scrollBy(0, -12);
+      else if (y > window.innerHeight - 70) window.scrollBy(0, 12);
+    };
+    const end = () => {
+      item.classList.remove('dragging');
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', end);
+      onReordered([...list.children].map((li) => li.dataset.id));
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  });
+}
+
+// A list shows only some cards (say, the favorites). Their new order is written back
+// into the places those cards already held, so other cards don't move.
+function applyCardOrder(ids) {
+  const moved = ids.map((id) => cards.find((c) => c.id === id)).filter(Boolean);
+  const slots = [];
+  cards.forEach((c, i) => { if (ids.includes(c.id)) slots.push(i); });
+  slots.forEach((slot, k) => { cards[slot] = moved[k]; });
+  saveCards(cards);
+  renderList();
+}
+
+makeSortable($('fav-list'), applyCardOrder);
+makeSortable($('other-list'), applyCardOrder);
+makeSortable($('folder-cards'), applyCardOrder);
+makeSortable($('folder-list'), (names) => { saveFolderOrder(names); renderList(); });
+
 // ---------- Screen 1b: inside a folder ----------
 
 function openFolderView(name) {
+  setReordering(false);
   openFolder = name;
   if (!renderFolder()) return;
   showScreen('folder');
@@ -231,6 +346,7 @@ function renderFolder() {
   const inFolder = cards.filter((c) => c.folder === openFolder);
   if (inFolder.length === 0) { goHome(); return false; }
   $('folder-name').textContent = openFolder;
+  $('folder-reorder').hidden = inFolder.length < 2 && !reordering;
   fillList($('folder-cards'), inFolder);
   return true;
 }
@@ -242,8 +358,11 @@ $('folder-rename').addEventListener('click', () => {
   const newName = (prompt('Rename folder', openFolder) || '').trim();
   if (!newName || newName === openFolder) return;
   const merging = folderNames().includes(newName);
+  const order = folderNames();
   for (const c of cards) if (c.folder === openFolder) c.folder = newName;
   saveCards(cards);
+  // Keep the folder in the same spot (or drop the old name when merging into another folder).
+  saveFolderOrder(merging ? order.filter((n) => n !== openFolder) : order.map((n) => (n === openFolder ? newName : n)));
   if (merging) toast(`Moved into the existing “${newName}” folder`);
   openFolderView(newName);
   renderList();
@@ -255,6 +374,7 @@ $('folder-delete').addEventListener('click', () => {
   if (!confirm(`Delete the folder “${openFolder}”?\n\nIts ${n} card${n === 1 ? '' : 's'} won’t be deleted — they move to Other cards.`)) return;
   for (const c of inFolder) c.folder = '';
   saveCards(cards);
+  saveFolderOrder(folderOrder.filter((name) => name !== openFolder));
   toast(`Folder deleted — cards kept`);
   goHome();
 });
@@ -441,6 +561,7 @@ let wakeLock = null;
 function openCard(id) {
   const card = cards.find((c) => c.id === id);
   if (!card) { showScreen('home'); return; }
+  setReordering(false);
   shownId = id;
   // A card opened from a folder goes back to that folder; if it has since moved out, go to the main list.
   if (openFolder && card.folder !== openFolder) openFolder = null;
@@ -514,7 +635,10 @@ function renderBackupStatus() {
 
 async function backUp() {
   if (cards.length === 0) { toast('No cards to back up yet.'); return; }
-  const data = { app: 'Barcodes', backupFormat: 1, appVersion: APP_VERSION, created: new Date().toISOString(), cards };
+  const data = {
+    app: 'Barcodes', backupFormat: 1, appVersion: APP_VERSION, created: new Date().toISOString(),
+    cards, folderOrder: folderNames(),
+  };
   const fileName = `barcodes-backup-${todayString()}.json`;
   const file = new File([JSON.stringify(data, null, 2)], fileName, { type: 'application/json' });
   try {
@@ -561,6 +685,7 @@ function restoreFrom(text) {
   const list = data && Array.isArray(data.cards) ? data.cards : null;
   if (!list) { toast('That file isn’t a Barcodes backup.'); return; }
 
+  const foldersBefore = folderNames();
   let added = 0, already = 0, unreadable = 0;
   for (const raw of list) {
     const card = cleanCard(raw);
@@ -571,6 +696,12 @@ function restoreFrom(text) {
     added++;
   }
   if (added && !saveCards(cards)) return;
+  // Folders from the backup keep their order, after any folders already on this phone.
+  if (Array.isArray(data.folderOrder)) {
+    const order = [...foldersBefore];
+    for (const n of data.folderOrder) if (typeof n === 'string' && !order.includes(n)) order.push(n);
+    saveFolderOrder(order);
+  }
   goHome();
 
   const parts = [added ? `Restored ${added} card${added === 1 ? '' : 's'}` : 'No new cards to add'];

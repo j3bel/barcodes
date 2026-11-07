@@ -2,7 +2,7 @@
 // It shows the saved copy first, then quietly fetches any update for next time.
 // When you change the app, bump VERSION (keep it the same as APP_VERSION in app.js).
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const FILES = [
   './',
   'index.html',

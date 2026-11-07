@@ -22,9 +22,18 @@
 
   <!-- Screen 1: the list of saved cards -->
   <main id="home" class="screen">
-    <header class="bar">
+    <header class="home-bar">
       <h1>Barcodes</h1>
+      <button id="reorder-button" class="link" type="button" hidden>Reorder</button>
     </header>
+    <form id="search-form" class="search" role="search" hidden>
+      <input id="search" type="search" placeholder="Search cards" autocomplete="off" enterkeyhint="search" aria-label="Search cards">
+    </form>
+    <p class="reorder-hint">Drag <strong>≡</strong> to move cards and folders. Tap <strong>Done</strong> when finished.</p>
+    <section id="search-section" class="group" hidden>
+      <ul id="search-list" class="card-list"></ul>
+      <p id="no-results" class="empty-search" hidden></p>
+    </section>
     <section id="fav-section" class="group" hidden>
       <h3 class="group-title">★ Favorites</h3>
       <ul id="fav-list" class="card-list"></ul>
@@ -57,10 +66,14 @@
     <header class="bar">
       <button id="folder-back" class="link" type="button">‹ Cards</button>
       <h2 id="folder-name"></h2>
-      <button id="folder-rename" class="link" type="button">Rename</button>
+      <button id="folder-reorder" class="link" type="button">Reorder</button>
     </header>
+    <p class="reorder-hint">Drag <strong>≡</strong> to move cards. Tap <strong>Done</strong> when finished.</p>
     <ul id="folder-cards" class="card-list"></ul>
-    <button id="folder-delete" class="danger folder-delete" type="button">Delete folder</button>
+    <div class="folder-actions">
+      <button id="folder-rename" class="danger plain" type="button">Rename folder</button>
+      <button id="folder-delete" class="danger" type="button">Delete folder</button>
+    </div>
     <button id="folder-add" class="fab" type="button">＋ Add</button>
   </section>
 

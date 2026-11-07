@@ -17,7 +17,12 @@ The owner is a complete beginner to app-making: explain steps plainly, suggest
   keep the old copy. New files must also be added to `sw.js`'s `FILES` list.
 - Cards: `{ id, name, text, format (bwip-js bcid), color, folder ('' = none), favorite, created }`.
   Older cards may lack `folder` / `favorite` — treat missing as ''/false.
-- Folders aren't stored; a folder exists while a card has that `folder` name.
+- Folders aren't stored; a folder exists while a card has that `folder` name. Their order
+  is `barcode-folder-order` (folders missing from it sort last, A–Z); backups carry it as
+  `folderOrder`. Card order is the order of the `cards` array; reordering a filtered list
+  (favorites, a folder) writes the new order back into those cards' existing slots.
+- Reorder = drag `.handle` with pointer events (`touch-action: none`); search filters name,
+  number and folder.
 - Backup = JSON `{ app: 'Barcodes', backupFormat: 1, appVersion, created, cards }`, sent via
   the Share sheet on iPhone (download on computers). Restore only ever **adds** cards,
   skipping ones with the same id or same text+format — it never deletes or overwrites.
