@@ -1,19 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0e0e10"/>
-  <rect x="88" y="104" width="336" height="212" rx="32" fill="#c64600"/>
-  <rect x="88" y="168" width="336" height="212" rx="32" fill="#1a5fb4"/>
-  <rect x="88" y="232" width="336" height="190" rx="32" fill="#ffffff"/>
-  <g fill="#0e0e10">
-    <rect x="132" y="272" width="14" height="110"/>
-    <rect x="158" y="272" width="7" height="110"/>
-    <rect x="177" y="272" width="21" height="110"/>
-    <rect x="210" y="272" width="7" height="110"/>
-    <rect x="229" y="272" width="14" height="110"/>
-    <rect x="255" y="272" width="7" height="110"/>
-    <rect x="274" y="272" width="21" height="110"/>
-    <rect x="307" y="272" width="7" height="110"/>
-    <rect x="326" y="272" width="7" height="110"/>
-    <rect x="345" y="272" width="14" height="110"/>
-    <rect x="369" y="272" width="10" height="110"/>
+  <!-- Designed on the canvas (option A, tweaked by the owner); 360px canvas units × 512/360. -->
+  <rect width="512" height="512" fill="#258594"/>
+  <rect x="42.67" y="126.58" width="336.07" height="212.05" rx="32" fill="#1a5fb4"/>
+  <rect x="96.71" y="159.29" width="320" height="240.07" rx="28.02" fill="#ffffff"/>
+  <g fill="#1e1e1e">
+    <rect x="132" y="207.5" width="16" height="167.96"/>
+    <rect x="160" y="207.5" width="8" height="167.96"/>
+    <rect x="180" y="207.5" width="24" height="167.96"/>
+    <rect x="216" y="207.5" width="8" height="167.96"/>
+    <rect x="236" y="207.5" width="16" height="167.96"/>
+    <rect x="264" y="207.5" width="8" height="167.96"/>
+    <rect x="284" y="207.5" width="24" height="167.96"/>
+    <rect x="320" y="207.5" width="8" height="167.96"/>
+    <rect x="340" y="207.5" width="8" height="167.96"/>
+    <rect x="360" y="207.5" width="20" height="167.96"/>
   </g>
 </svg>

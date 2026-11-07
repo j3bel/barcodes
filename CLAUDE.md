@@ -12,6 +12,9 @@ The owner is a complete beginner to app-making: explain steps plainly, suggest
   Favorites / each folder, orange accent `#ffb340`. Fonts Space Grotesk + JetBrains Mono,
   self-hosted in `fonts/` (OFL) so it works offline. Card colours are the deep set in
   `COLORS`; pre-v6 bright colours are mapped by `OLD_COLORS` on load / restore / share.
+- Icon (v7): teal `#258594`, a blue card peeking behind a white barcode card — the owner's
+  own tweak of option A on the design canvas. `icons/icon.svg` is the source; PNGs are
+  rendered from it with `rsvg-convert`.
 - Plain HTML/CSS/JS, no build step, no npm. Files: `index.html`, `style.css`,
   `app.js`, `sw.js` (offline cache), `manifest.webmanifest`, `icons/`.
 - Libraries are copied into `vendor/` (no CDN, so it works offline):
