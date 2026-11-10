@@ -6,7 +6,7 @@
 // Shown at the bottom of the main screen. Change both when you publish an update,
 // and set VERSION in sw.js to match.
 const APP_VERSION = 8;
-const APP_DATE = '2026-11-08';
+const APP_DATE = '2026-11-09';
 
 const STORAGE_KEY = 'barcode-cards-v1';
 // Deep enough that white text on them stays readable in bright light.
